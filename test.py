@@ -109,4 +109,5 @@ if __name__ == "__main__":
             
         else: 
             break
-    out.close()
+    cap.release()
+    out.release()
