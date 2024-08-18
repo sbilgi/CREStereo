@@ -109,9 +109,4 @@ if __name__ == "__main__":
             
         else: 
             break
-
-    parent_path = os.path.abspath(os.path.join(args.output, os.pardir))
-    if not os.path.exists(parent_path):
-        os.makedirs(parent_path)
-    cv2.imwrite(args.output, disp_vis)
-    print("Done! Result path:", os.path.abspath(args.output))
+    out.close()
