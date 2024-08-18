@@ -58,47 +58,57 @@ if __name__ == "__main__":
         help="The path of pre-trained MegEngine model.",
     )
     parser.add_argument(
-        "--left", default="img/test/left.png", help="The path of left image."
-    )
-    parser.add_argument(
-        "--right", default="img/test/right.png", help="The path of right image."
-    )
-    parser.add_argument(
         "--size",
         default="1024x1536",
         help="The image size for inference. Te default setting is 1024x1536. \
                         To evaluate on ETH3D Benchmark, use 768x1024 instead.",
     )
     parser.add_argument(
-        "--output", default="disparity.png", help="The path of output disparity."
+        "--output", default="disparity.avi", help="The path of output disparity."
     )
+
+    parser.add_argument(
+        "--video_path", default="disparity.png", help="The path of video."
+    )
+    
     args = parser.parse_args()
 
     assert os.path.exists(args.model_path), "The model path do not exist."
-    assert os.path.exists(args.left), "The left image path do not exist."
-    assert os.path.exists(args.right), "The right image path do not exist."
+    assert os.path.exists(args.video_path), "The video path do not exist."
 
+    cap = cv2.VideoCapture('args.video_path')
     model_func = load_model(args.model_path)
-    left = cv2.imread(args.left)
-    right = cv2.imread(args.right)
-
-    assert left.shape == right.shape, "The input images have inconsistent shapes."
-
-    in_h, in_w = left.shape[:2]
-
     print("Images resized:", args.size)
     eval_h, eval_w = [int(e) for e in args.size.split("x")]
-    left_img = cv2.resize(left, (eval_w, eval_h), interpolation=cv2.INTER_LINEAR)
-    right_img = cv2.resize(right, (eval_w, eval_h), interpolation=cv2.INTER_LINEAR)
+    out = cv2.VideoWriter(args.output ,cv2.VideoWriter_fourcc('M','J','P','G'), 10, (eval_w*3,eval_h))
 
-    pred = inference(left_img, right_img, model_func, n_iter=20)
+    while(cap.isOpened()):
+        ret, frame = cap.read()
+        if ret == True:
+            left = frame(Rect(0, 0, frame.cols/2, frame.rows));
+            right = frame(Rect(frame.cols/2, 0, frame.cols, frame.rows));
 
-    t = float(in_w) / float(eval_w)
-    disp = cv2.resize(pred, (in_w, in_h), interpolation=cv2.INTER_LINEAR) * t
+            assert left.shape == right.shape, "The input images have inconsistent shapes."
 
-    disp_vis = (disp - disp.min()) / (disp.max() - disp.min()) * 255.0
-    disp_vis = disp_vis.astype("uint8")
-    disp_vis = cv2.applyColorMap(disp_vis, cv2.COLORMAP_INFERNO)
+            in_h, in_w = left.shape[:2]
+
+            left_img = cv2.resize(left, (eval_w, eval_h), interpolation=cv2.INTER_LINEAR)
+            right_img = cv2.resize(right, (eval_w, eval_h), interpolation=cv2.INTER_LINEAR)
+
+            pred = inference(left_img, right_img, model_func, n_iter=20)
+
+            t = float(in_w) / float(eval_w)
+            disp = cv2.resize(pred, (in_w, in_h), interpolation=cv2.INTER_LINEAR) * t
+
+            disp_vis = (disp - disp.min()) / (disp.max() - disp.min()) * 255.0
+            disp_vis = disp_vis.astype("uint8")
+            disp_vis = cv2.applyColorMap(disp_vis, cv2.COLORMAP_INFERNO)
+            img3 = cv2.hconcat([left_image, right_image])
+            img3 = cv2.hconcat([img3, disp_vis])
+            out.write(img3)
+            
+        else: 
+            break
 
     parent_path = os.path.abspath(os.path.join(args.output, os.pardir))
     if not os.path.exists(parent_path):
